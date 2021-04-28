@@ -271,7 +271,13 @@ unsigned int const& end_xiD,unsigned int const& end_yiD)
 {
   double energy_(0.);
   // TODO: completer ici en utilisant la formule des trapezes
-
+  double sum_f(0.0);
+  for(unsigned int i(0); i<f.size()-2 ; i++){
+	  for(unsigned int j(0); j<f.size()-2 ; j++){
+	  sum_f = f[i][j] * f[i][j] + f[i+1][j] * f[i+1][j] + f[i][j+1] * f[i][j+1] + f[i+1][j+1] * f[i+1][j+1];  //équation donnant l'énergie totale
+	}
+  }
+energy_ = (1/4) * dx * dy * sum_f;
 
   return energy_;
 }
@@ -364,12 +370,18 @@ int main(int argc, char* argv[])
   double dt = 1.e0;
   bool write_mesh = configFile.get<bool>("write_mesh"); // Exporter x,y
   bool write_f = configFile.get<bool>("write_f"); // Exporter f(x,y,t) ou non
- 
+  double L_x = fabs(u2.get_right_extremum() - u2.get_left_extremum()); 
+  double L_y = u2.get_upper_extremum() - u2.get_lower_extremum()
+
+  dx = L_x / (Nx_real-1);
+  dy = L_y / (Ny_real-1);
+  dt = CFL / sqrt(u2.max() * u2.max() * (1/(dx*dx) + 1/(dy*dy)));
+
 
   //Conditions aux bords (les strings sont converties en valeurs numeriques a l'aide d'un enumerateur) :
   bound_cond bc_left, bc_right, bc_upper, bc_lower;
   unsigned int Nx=Nx_real,Ny=Ny_real,start_xiD=0,end_xiD=Nx_real-1,start_yiD=0,end_yiD=Ny_real-1;
-  bc_left = read_boundary_condition(configFile.get<string>("bc_left").c_str());		//conditios aux bords
+  bc_left = read_boundary_condition(configFile.get<string>("bc_left").c_str());		
   if(bc_left==neumann){
     // TODO
   }
@@ -423,6 +435,8 @@ int main(int argc, char* argv[])
   // TODO: calcul de l'inverse de la longueur d'onde en x et y: k_x=m*pi/L_x; k_y=n*pi/L_y;
   double k_wave_x(0.);
   double k_wave_y(0.);
+  double k_x = mode_num_x * M_PI / L_x;
+  double k_y = mode_num_y * M_PI / L_y;
   
   // Initialisation des tableaux du schema numerique :
   vector<vector<double>> fpast(Ny,vector<double>(Nx)), fnow(Ny,vector<double>(Nx)),\
@@ -472,7 +486,7 @@ int main(int argc, char* argv[])
     // TODO: calculer fnext selon le schema explicite a 3 niveaux
     for(i=1; i<Ny-1; ++i){
       for(j=1; j<Nx-1; ++j){
-        fnext[i][j] = 0.0; // a modifier!
+        fnext[i][j] = ; // a modifier!
       } 
     }
 
