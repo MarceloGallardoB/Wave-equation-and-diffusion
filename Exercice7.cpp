@@ -272,9 +272,9 @@ unsigned int const& end_xiD,unsigned int const& end_yiD)
   double energy_(0.);
   // TODO: completer ici en utilisant la formule des trapezes
   double sum_f(0.0);
-  for(unsigned int i(0); i<f.size()-2 ; i++){
-	  for(unsigned int j(0); j<f.size()-2 ; j++){
-	  sum_f = f[i][j] * f[i][j] + f[i+1][j] * f[i+1][j] + f[i][j+1] * f[i][j+1] + f[i+1][j+1] * f[i+1][j+1];  //équation donnant l'énergie totale
+  for(double i(start_xiD); i<end_xiD ; i+=1){ //il a pas besoin d'être int et commencer a 0
+	  for(double j(start_yiD); j< end_yiD ; j+=1){
+	  sum_f = (f[i][j] * f[i][j] + f[i+1][j] * f[i+1][j] + f[i][j+1] * f[i][j+1] + f[i+1][j+1] * f[i+1][j+1]);  //équation donnant l'énergie totale
 	}
   }
 energy_ = (1/4) * dx * dy * sum_f;
@@ -285,7 +285,7 @@ energy_ = (1/4) * dx * dy * sum_f;
 //
 // Surcharge de l'operateur pour ecrire les elements d'un tableau 1D
 //
-template <class T> ostream& operator<< (ostream& o, vector<T> const& v)		//????????????? chelou
+template <class T> ostream& operator<< (ostream& o, vector<T> const& v)		
 {
   unsigned int len(v.size());
 
@@ -319,7 +319,13 @@ unsigned int const& end_xiD,unsigned int const& end_yiD)
 double perturbation(double const& t,double const& x,double const& y,\
 double const& xL, double const& xR,double const& yL, double const& yU, \
 double const& pert_velocity, double const& pert_amplitude, \
-int const mode_num_x,int const mode_num_y) {
+int const mode_num_x,int const mode_num_y, bool const& simple) {
+ if (simple){
+    return pert_amplitude*cos(M_PI*((mode_num_x*x/(xR - xL))) + (mode_num_y*y/(yU - yL))); // Acos(pi x/L_x + pi y/L_y)
+  }
+  else{
+    return pert_amplitude*sin(pert_velocity*t); //a_e sin(wt)
+  }
 
  return 0.e0;
 
@@ -350,6 +356,7 @@ int main(int argc, char* argv[])
   double pert_velocity  = configFile.get<double>("pert_velocity");
   int mode_num_x	 = configFile.get<int>("mode_num_x");
   int mode_num_y	 = configFile.get<int>("mode_num_y");
+  bool simple	 = configFile.get<bool>("simple");
 
   U2* u2;
   if(type_u2 == "const")
@@ -365,17 +372,15 @@ int main(int argc, char* argv[])
   }
 
   // TODO calculer le maillage et le pas de temps
-  double dx = 1.e0;
-  double dy = 1.e0;
-  double dt = 1.e0;
+
   bool write_mesh = configFile.get<bool>("write_mesh"); // Exporter x,y
   bool write_f = configFile.get<bool>("write_f"); // Exporter f(x,y,t) ou non
-  double L_x = fabs(u2.get_right_extremum() - u2.get_left_extremum()); 
-  double L_y = u2.get_upper_extremum() - u2.get_lower_extremum()
+  double L_x(u2->get_right_extremum()- u2->get_left_extremum()); //u2 --> pointeur
+  double L_y(u2->get_upper_extremum() - u2->get_lower_extremum());
 
-  dx = L_x / (Nx_real-1);
-  dy = L_y / (Ny_real-1);
-  dt = CFL / sqrt(u2.max() * u2.max() * (1/(dx*dx) + 1/(dy*dy)));
+  double dx(L_x/(Nx_real-1));
+  double dy(L_y/(Ny_real-1));
+  double dt(sqrt(pow(CFL,2)/(u2->max()*((1/pow(dx,2)) + (pow(dy,2))))));
 
 
   //Conditions aux bords (les strings sont converties en valeurs numeriques a l'aide d'un enumerateur) :
@@ -394,18 +399,19 @@ int main(int argc, char* argv[])
   bc_upper = read_boundary_condition(configFile.get<string>("bc_upper").c_str());
   if(bc_upper==neumann) ; // TODO
 
-  // lire si un impulsion doit etre execute:
-  // c'est une option facultative, qui veut dire qu'on excite une seule periode d'excitation
+   // Lire certaines données si un des bords est harmonique
+  double A, omega; // Paramètres d'excitation
+  // Lire si une impulsion doit être éxecutée:
+  // C'est une option facultative, qui veut dire qu'on excite une seule periode d'excitation
   bool impulsion(configFile.get<bool>("impulsion"));
-
-  double A, omega; // Parametres d'excitation
-  if(bc_left == harmonic || bc_right == harmonic)
-  {
+  bool neumann_apres_impulsion = configFile.get<bool>("neumann_apres_impulsion"); // Impulsion et loi du bord après impulsion
+  if(bc_left == harmonic || bc_right == harmonic || bc_upper== harmonic || bc_lower == harmonic){
     A = configFile.get<double>("A");
     omega = configFile.get<double>("omega");
   }
-
-
+  
+  
+  
   // Fichiers de sortie :
   ofstream fichier_mesh(configFile.get<string>("output_mesh").c_str());		//nome du fichier d'output du maillage
   fichier_mesh.precision(15);
@@ -426,19 +432,30 @@ int main(int argc, char* argv[])
   }
   fichier_u.close();
 
-
-  // lire les donnees pour initialiser les tableaux
+ // ----------------------------------------------------------------------------------------------------------------------
+  // Lire les données pour initialiser les tableaux
   string type_init(configFile.get<string>("type_init").c_str());
   double F0(configFile.get<double>("F0"));
-  double u2_loc(0);
 
-  // TODO: calcul de l'inverse de la longueur d'onde en x et y: k_x=m*pi/L_x; k_y=n*pi/L_y;
-  double k_wave_x(0.);
-  double k_wave_y(0.);
-  double k_x = mode_num_x * M_PI / L_x;
-  double k_y = mode_num_y * M_PI / L_y;
+  // TODO: Calcul du vecteur d'onde selon le mode propre en x et y: k_x=m*pi/L_x; k_y=n*pi/L_y;
+  double k_wave_x(mode_num_x*M_PI/L_x);
+  double k_wave_y(mode_num_y*M_PI/L_y);
+
+  // Put has first line the position vector
+  vector<double> x_mesh(Nx_real),y_mesh(Ny_real);
+  for(i = start_xiD; i < end_xiD + 1; ++i){
+    x_mesh[i] = u2->get_left_extremum() + (i-start_xiD)*dx; 
+  }
+  for(i = start_yiD; i < end_yiD + 1; ++i){
+    y_mesh[i] = u2->get_lower_extremum() + (i-start_yiD)*dy;
+  }
+  if(write_mesh){
+    fichier_mesh << x_mesh << endl;
+    fichier_mesh << y_mesh << endl;
+    fichier_mesh.close();
+  }
   
-  // Initialisation des tableaux du schema numerique :
+  // Initialisation des tableaux du schéma numérique :
   vector<vector<double>> fpast(Ny,vector<double>(Nx)), fnow(Ny,vector<double>(Nx)),\
   fnext(Ny,vector<double>(Nx)), betax2(Ny,vector<double>(Nx)),betay2(Ny,vector<double>(Nx)); 
 
@@ -446,20 +463,33 @@ int main(int argc, char* argv[])
     // On initialise alors un mode propre (m,n); 
     // TODO: completer fnow, fpast, beta_x^2, beta_y^2
     // Note : La syntaxe pour evaluer u^2 au point x est (*u2)(x,y)
-    
-  } else {
+    for(unsigned int i(start_xiD); i <= end_xiD; ++i){
+      for(unsigned int j(start_yiD); j <= end_yiD; ++j){
+        fpast[i][j] = F0*(cos(x_mesh[i]*k_wave_x - y_mesh[j]*k_wave_y) - cos(x_mesh[i]*k_wave_x + y_mesh[j]*k_wave_y));
+        fnow[i][j] = F0*(cos(x_mesh[i]*k_wave_x - y_mesh[j]*k_wave_y) - cos(x_mesh[i]*k_wave_x + y_mesh[j]*k_wave_y));
+      }     
+    }
+  } 
+  else{
     // On initialise alors une perturbation nulle.
     // TODO: completer fnow, fpast, beta_x^2, beta_y^2
     // Note : La syntaxe pour evaluer u^2 au point x est (*u2)(x,y)
-
+    for(unsigned int i(start_xiD); i<=end_xiD; ++i){
+      for(unsigned int j(start_yiD); j<=end_yiD; ++j){
+        fpast[i][j] = 0;
+        fnow[i][j] = 0;
+      }     
+    }
   }
 
+  // ----------------------------------------------------------------------------------------------------------------------
+
   // Boucle temporelle :
-  double t,amplitude_bnd;
+  double t;
   unsigned int stride(0);
   unsigned int n_stride(configFile.get<unsigned int>("n_stride"));
   // put has first line the position vector
-  vector<double> x_mesh(Nx_real),y_mesh(Ny_real);
+
   for(i=start_xiD; i<end_xiD+1; ++i){
     x_mesh[i] = u2->get_left_extremum()+(i-start_xiD)*dx; 
   }
@@ -484,70 +514,174 @@ int main(int argc, char* argv[])
     }
     ++stride;
     // TODO: calculer fnext selon le schema explicite a 3 niveaux
-    for(i=1; i<Ny-1; ++i){
-      for(j=1; j<Nx-1; ++j){
-        fnext[i][j] = ; // a modifier!
+       for(i=1; i<Nx-1; ++i){
+      for(j=1; j<Ny-1; ++j){
+        fnext[i][j] = (dt*dt)*((((*u2)(x_mesh[i+1],y_mesh[j]) - (*u2)(x_mesh[i-1],y_mesh[j]))*(fnow[i+1][j] - fnow[i-1][j])/(4*pow(dx, 2))) 
+                    + (((*u2)(x_mesh[i],y_mesh[j+1]) - (*u2)(x_mesh[i],y_mesh[j-1]))*(fnow[i][j+1] - fnow[i][j-1])/(4*pow(dy, 2))) 
+                    + (*u2)(x_mesh[i],y_mesh[j])*((fnow[i+1][j] - 2*fnow[i][j] + fnow[i-1][j])/pow(dx, 2))  
+                    + (*u2)(x_mesh[i],y_mesh[j])*((fnow[i][j+1] - 2*fnow[i][j] + fnow[i][j-1])/pow(dy, 2)))
+                    + 2*fnow[i][j] 
+                    - fpast[i][j]; // À modifier!
       } 
     }
 
-    // Conditions aux bords:
-    switch(bc_left) // condition au bord "gauche" (x=0)
-    {
-      case dirichlet: // TODO : Completer la condition au bord gauche dirichlet homogene ("fixe")
+
+
+/*/
+
+\begin{equation*}
+    f(x_i,y_j,t_{k+1}) = h_{t}^2 \bigg[ \underbrace{ u^2(x_i,y_j) \ \frac{f(x_{i+1},y_j) - 2f(x_{i},y_{j}) + f(x_{i-1},y_j)}{h_x^2}}_{u^2 \frac{\partial^2 f}{\partial x^2}}
+\end{equation*}
+\begin{equation*}
+      + \underbrace{u^2(x_i,y_j) \  \frac{f(x_{i},y_{j+1}) - 2f(x_{i},y_{j}) + f(x_{i},y_{j-1})}{h_y^2}}_{u^2 \frac{\partial ^2 f}{\partial y^2}}    +  \underbrace{\bigg( \frac{(u^2(x_{i+1},y_j) - u^2(x_{i-1},y_j)) (f(x_{i+1},y_j) - f(x_{i-1},y_j))}{4h_x^2} \bigg)}_{\frac{\partial u^2}{\partial x} \frac{\partial f}{\partial x}}
+\end{equation*}
+\begin{equation*}
+      + \underbrace{\bigg( \frac{(u^2(x_{i},y_{j+1}) - u^2(x_{i},y_{j-1})) (f(x_{i},y_{j+1}) - f(x_{i},y_{j-1}))}{4h_y^2} \bigg)}_{\frac{\partial u^2}{\partial y} \frac{\partial f}{\partial y}} + a_{e}(x,y)\sin(\omega t) \bigg] + 2f(x_i,y_j,t_{k}) - f(x_i,y_j,t_{k-1})
+\end{equation*}
+/*/
+
+
+
+   // Conditions aux bords:
+    double xL(0); double xR(0); double yL(0); double yU(0);
+    switch(bc_left){ // Condition au bord "gauche" (x=0)
+      case dirichlet: // TODO : Compléter la condition au bord gauche dirichlet homogène ("fixe")
+        for (unsigned int y(start_yiD+1); y < end_yiD; ++y){
+          fnext[start_xiD][y] = fnow[start_xiD][y]; //f(x0,y)
+        }
         break;
-      case neumann: // TODO : Completer la condition au bord gauche neumann homogene ("libre")
+      case neumann: // TODO : Compléter la condition au bord gauche neumann homogène ("libre")
+        for (unsigned int y(start_yiD+1); y < end_yiD; ++y){
+          fnext[start_xiD][y] = fnext[start_xiD+1][y]; // f(x0,y) = f(x1,y)
+        }
         break;
-      case harmonic: // TODO : Completer la condition au bord gauche harmonique 
+      case harmonic: // TODO : Compléter la condition au bord gauche harmonique 
+        if (impulsion && t >= (2*M_PI/omega)){ //T
+          for (unsigned int y(start_yiD+1); y < end_yiD; ++y){
+            fnext[start_xiD][y] = 0;
+          }
+          if (neumann_apres_impulsion){
+            bc_left = neumann;
+          }
+          else{
+            bc_left = dirichlet;
+          }
+          break;
+        }
+        for (unsigned int y(start_yiD+1); y < end_yiD; ++y){
+          fnext[start_xiD][y] = perturbation(t, 0, y*dy, xL, xR, yL, yU, omega, A, mode_num_x, mode_num_y, simple); //perturbation
+        }
         break;
       default:
         throw "Invalid left boundary condition!";
     }
 
-    switch(bc_right) // condition au bord droite (x=L_x)
-    {
-      case dirichlet: // TODO : Completer la condition au bord droit dirichlet homogene ("fixe")
+    switch(bc_right){ // Condition au bord droite (x=L_x)
+      case dirichlet: // TODO : Compléter la condition au bord droit dirichlet homogène ("fixe")
+        for (unsigned int y(start_yiD+1); y < end_yiD; ++y){
+          fnext[end_xiD][y] = fnow[end_xiD][y]; //f(Lx,y,t) = f(Lx,y,t+1)
+        }
         break;
-      case neumann: // TODO : Completer la condition au bord droit neumann homogene ("libre")
+      case neumann: // TODO : Compléter la condition au bord droit neumann homogène ("libre")
+        for (unsigned int y(start_yiD+1); y < end_yiD; ++y){
+          fnext[end_xiD][y] = fnext[end_xiD-1][y]; //f(x_Lx, y,t+1) = f(x_Lx-1 , y,t+1))        
+        }
         break;
-      case harmonic: // TODO : Completer la condition au bord droit harmonique
+      case harmonic: // TODO : Compléter la condition au bord droit harmonique
+        if (impulsion && t >= (2*M_PI/omega)){
+          for (unsigned int y(start_yiD+1); y < end_yiD; ++y){
+            fnext[end_xiD][y] = 0; //f(x_L,y) = 0
+          }
+          if (neumann_apres_impulsion){ //on reviens au stade normal
+            bc_right = neumann;
+          }
+          else{
+            bc_right = dirichlet;
+          }
+          break;
+        }
+        for (unsigned int y(start_yiD+1); y < end_yiD; ++y){ //harmonique: impulsion
+          fnext[end_xiD][y] = perturbation(t, L_x, y*dy, xL, xR, yL, yU, omega, A, mode_num_x, mode_num_y,simple);
+        } 
         break;
       default:
         throw "Invalid right boundary condition!";
     }
     
-    switch(bc_lower) // condition au bord inferieur (y=0)
-    {
-      case dirichlet: // TODO : Completer la condition au bord inferieur dirichlet homogene ("fixe")
+    switch(bc_lower){ // Condition au bord inférieur (y=0)
+      case dirichlet: // TODO : Compléter la condition au bord inferieur dirichlet homogène ("fixe")
+        for (unsigned int x(start_xiD); x <= end_xiD; ++x){
+          fnext[x][start_yiD] = fnow[x][start_yiD];
+        }
         break;
-      case neumann:  // TODO : Completer la condition au bord inferieur neumann homogene ("libre")
+      case neumann:  // TODO : Compléter la condition au bord inferieur neumann homogène ("libre")
+        for (unsigned int x(start_xiD); x <= end_xiD; ++x){
+          fnext[x][start_yiD] = fnext[x][start_yiD+1];
+        }
         break;
-      case harmonic: // TODO : Completer la condition au bord inferieur harmonique
+      case harmonic: // TODO : Compléter la condition au bord inferieur harmonique
+        if (impulsion && t >= (2*M_PI/omega)){
+          for (unsigned int y(start_yiD+1); y < end_yiD; ++y){
+            fnext[end_xiD][y] = 0;
+          }
+          if (neumann_apres_impulsion){
+            bc_lower = neumann;
+          }
+          else{
+            bc_lower = dirichlet;
+          }
+          break;
+        }
+        for (unsigned int x(start_xiD); x <= end_xiD; ++x){
+          fnext[x][start_yiD] = perturbation(t, x*dx, 0, xL, xR, yL, yU, omega, A, mode_num_x, mode_num_y, simple);
+        }
         break;
       default:
         throw "Invalid lower boundary condition!";
     }
-    switch(bc_upper) // condition au bord superieur (y=L_y)
-    {
-      case dirichlet: // TODO : Completer la condition au bord superieur dirichlet homogene ("fixe")
+
+    switch(bc_upper){ // Condition au bord supérieur (y=L_y)
+      case dirichlet: // TODO : Compléter la condition au bord superieur dirichlet homogène ("fixe")
+        for (unsigned int x(start_xiD); x <= end_xiD; ++x){
+          fnext[x][end_yiD] = fnow[x][end_yiD];
+        }
         break;
-      case neumann:  // TODO : Completer la condition au bord superieur neumann homogene ("libre")
+      case neumann:  // TODO : Compléter la condition au bord superieur neumann homogène ("libre")
+        for (unsigned int x(start_xiD); x <= end_xiD; ++x){
+          fnext[x][end_yiD] = fnext[x][end_yiD-1];
+        }
         break;
-      case harmonic: // TODO : Completer la condition au bord superieur harmonique
+      case harmonic: // TODO : Compléter la condition au bord superieur harmonique
+        if (impulsion && t >= (2*M_PI/omega)){
+          for (unsigned int x(start_xiD); x <= end_xiD; ++x){
+            fnext[x][end_yiD] = fnow[x][end_yiD];
+          }
+          if (neumann_apres_impulsion){
+            bc_upper = neumann;
+          }
+          else{
+            bc_upper = dirichlet;
+          }
+          break;
+        }
+        for (unsigned int x(start_xiD); x <= end_xiD; ++x){
+          fnext[x][end_yiD] = perturbation(t, x*dx, L_y, xL, xR, yL, yU, omega, A, mode_num_x, mode_num_y,simple);
+        }
         break;
       default:
         throw "Invalid upper boundary condition!";
     }
-
-    // Mise a jour :
+    
+    // ----------------------------------------------------------------------------------------------------------------------
+    // Mise à jour :
     fpast = fnow;
     fnow  = fnext;
-    
-    
   }
   
-  // Ecrire la solution
-  if(write_f) {print_table(fichier_f,t,fnow,start_xiD,start_yiD,end_xiD,end_yiD);}
-  fichier_E << t << " " << energy(fnow,dx,dy,start_xiD,start_yiD,end_xiD,end_yiD) << endl;
+  // ----------------------------------------------------------------------------------------------------------------------
+  // Écrire la solution
+  if(write_f) print_table(fichier_f,t,fnow,start_xiD,start_yiD,end_xiD,end_yiD);
+    fichier_E << t << " " << energy(fnow,dx,dy,start_xiD,start_yiD,end_xiD,end_yiD) << endl;
 
   fichier_f.close();
   fichier_E.close();
