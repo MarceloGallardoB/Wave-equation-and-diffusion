@@ -40,7 +40,6 @@ public:
   double get_left_extremum(){
     return xL;
   }
-
   double get_right_extremum(){
     return xR;
   }
@@ -279,7 +278,7 @@ unsigned int const& end_xiD,unsigned int const& end_yiD)
   }
 energy_ = (1/4) * dx * dy * sum_f;
 
-  return energy_;
+  return energy_;				// VERIFIE
 }
 
 //
@@ -378,9 +377,9 @@ int main(int argc, char* argv[])
   double L_x(u2->get_right_extremum()- u2->get_left_extremum()); //u2 --> pointeur
   double L_y(u2->get_upper_extremum() - u2->get_lower_extremum());
 
-  double dx(L_x/(Nx_real-1));
-  double dy(L_y/(Ny_real-1));
-  double dt(sqrt(pow(CFL,2)/(u2->max()*((1/pow(dx,2)) + (pow(dy,2))))));
+  double dx(L_x/(Nx_real-1));				// VERIFIE
+  double dy(L_y/(Ny_real-1));				// VERIFIE
+  double dt(sqrt(pow(CFL,2)/(u2->max()*((1/pow(dx,2)) + 1/(pow(dy,2))))));				// VERIFIE
 
 
   //Conditions aux bords (les strings sont converties en valeurs numeriques a l'aide d'un enumerateur) :
@@ -438,16 +437,16 @@ int main(int argc, char* argv[])
   double F0(configFile.get<double>("F0"));
 
   // TODO: Calcul du vecteur d'onde selon le mode propre en x et y: k_x=m*pi/L_x; k_y=n*pi/L_y;
-  double k_wave_x(mode_num_x*M_PI/L_x);
-  double k_wave_y(mode_num_y*M_PI/L_y);
+  double k_wave_x(mode_num_x*M_PI/L_x);				// VERIFIE
+  double k_wave_y(mode_num_y*M_PI/L_y);				// VERIFIE
 
   // Put has first line the position vector
   vector<double> x_mesh(Nx_real),y_mesh(Ny_real);
   for(i = start_xiD; i < end_xiD + 1; ++i){
-    x_mesh[i] = u2->get_left_extremum() + (i-start_xiD)*dx; 
+    x_mesh[i] = u2->get_left_extremum() + (i-start_xiD)*dx; 				// VERIFIE
   }
   for(i = start_yiD; i < end_yiD + 1; ++i){
-    y_mesh[i] = u2->get_lower_extremum() + (i-start_yiD)*dy;
+    y_mesh[i] = u2->get_lower_extremum() + (i-start_yiD)*dy;				// VERIFIE
   }
   if(write_mesh){
     fichier_mesh << x_mesh << endl;
@@ -465,10 +464,10 @@ int main(int argc, char* argv[])
     // Note : La syntaxe pour evaluer u^2 au point x est (*u2)(x,y)
     for(unsigned int i(start_xiD); i <= end_xiD; ++i){
       for(unsigned int j(start_yiD); j <= end_yiD; ++j){
-        fpast[i][j] = F0*(cos(x_mesh[i]*k_wave_x - y_mesh[j]*k_wave_y) - cos(x_mesh[i]*k_wave_x + y_mesh[j]*k_wave_y));
-        fnow[i][j] = F0*(cos(x_mesh[i]*k_wave_x - y_mesh[j]*k_wave_y) - cos(x_mesh[i]*k_wave_x + y_mesh[j]*k_wave_y));
+        fpast[i][j] = F0*(cos(x_mesh[i]*k_wave_x - y_mesh[j]*k_wave_y) - cos(x_mesh[i]*k_wave_x + y_mesh[j]*k_wave_y));				// VERIFIE
+        fnow[i][j] = F0*(cos(x_mesh[i]*k_wave_x - y_mesh[j]*k_wave_y) - cos(x_mesh[i]*k_wave_x + y_mesh[j]*k_wave_y));				// VERIFIE
       }     
-    }
+    }				// pourquoi c est la meme??????????
   } 
   else{
     // On initialise alors une perturbation nulle.
@@ -524,11 +523,10 @@ int main(int argc, char* argv[])
                     - fpast[i][j]; // À modifier!
       } 
     }
-
+				// VERIFIE
 
 
 /*/
-
 \begin{equation*}
     f(x_i,y_j,t_{k+1}) = h_{t}^2 \bigg[ \underbrace{ u^2(x_i,y_j) \ \frac{f(x_{i+1},y_j) - 2f(x_{i},y_{j}) + f(x_{i-1},y_j)}{h_x^2}}_{u^2 \frac{\partial^2 f}{\partial x^2}}
 \end{equation*}
@@ -547,12 +545,12 @@ int main(int argc, char* argv[])
     switch(bc_left){ // Condition au bord "gauche" (x=0)
       case dirichlet: // TODO : Compléter la condition au bord gauche dirichlet homogène ("fixe")
         for (unsigned int y(start_yiD+1); y < end_yiD; ++y){
-          fnext[start_xiD][y] = fnow[start_xiD][y]; //f(x0,y)
+          fnext[start_xiD][y] = fnow[start_xiD][y]; //f(x0,y)				// VERIFIE
         }
         break;
       case neumann: // TODO : Compléter la condition au bord gauche neumann homogène ("libre")
         for (unsigned int y(start_yiD+1); y < end_yiD; ++y){
-          fnext[start_xiD][y] = fnext[start_xiD+1][y]; // f(x0,y) = f(x1,y)
+          fnext[start_xiD][y] = fnext[start_xiD+1][y]; // f(x0,y) = f(x1,y)				// VERIFIE
         }
         break;
       case harmonic: // TODO : Compléter la condition au bord gauche harmonique 
@@ -579,12 +577,12 @@ int main(int argc, char* argv[])
     switch(bc_right){ // Condition au bord droite (x=L_x)
       case dirichlet: // TODO : Compléter la condition au bord droit dirichlet homogène ("fixe")
         for (unsigned int y(start_yiD+1); y < end_yiD; ++y){
-          fnext[end_xiD][y] = fnow[end_xiD][y]; //f(Lx,y,t) = f(Lx,y,t+1)
+          fnext[end_xiD][y] = fnow[end_xiD][y]; //f(Lx,y,t) = f(Lx,y,t+1)				// VERIFIE
         }
         break;
       case neumann: // TODO : Compléter la condition au bord droit neumann homogène ("libre")
         for (unsigned int y(start_yiD+1); y < end_yiD; ++y){
-          fnext[end_xiD][y] = fnext[end_xiD-1][y]; //f(x_Lx, y,t+1) = f(x_Lx-1 , y,t+1))        
+          fnext[end_xiD][y] = fnext[end_xiD-1][y]; //f(x_Lx, y,t+1) = f(x_Lx-1 , y,t+1))  				// VERIFIE      
         }
         break;
       case harmonic: // TODO : Compléter la condition au bord droit harmonique
@@ -611,12 +609,12 @@ int main(int argc, char* argv[])
     switch(bc_lower){ // Condition au bord inférieur (y=0)
       case dirichlet: // TODO : Compléter la condition au bord inferieur dirichlet homogène ("fixe")
         for (unsigned int x(start_xiD); x <= end_xiD; ++x){
-          fnext[x][start_yiD] = fnow[x][start_yiD];
+          fnext[x][start_yiD] = fnow[x][start_yiD];				// VERIFIE
         }
         break;
       case neumann:  // TODO : Compléter la condition au bord inferieur neumann homogène ("libre")
         for (unsigned int x(start_xiD); x <= end_xiD; ++x){
-          fnext[x][start_yiD] = fnext[x][start_yiD+1];
+          fnext[x][start_yiD] = fnext[x][start_yiD+1];				// VERIFIE
         }
         break;
       case harmonic: // TODO : Compléter la condition au bord inferieur harmonique
@@ -643,12 +641,12 @@ int main(int argc, char* argv[])
     switch(bc_upper){ // Condition au bord supérieur (y=L_y)
       case dirichlet: // TODO : Compléter la condition au bord superieur dirichlet homogène ("fixe")
         for (unsigned int x(start_xiD); x <= end_xiD; ++x){
-          fnext[x][end_yiD] = fnow[x][end_yiD];
+          fnext[x][end_yiD] = fnow[x][end_yiD];				// VERIFIE
         }
         break;
       case neumann:  // TODO : Compléter la condition au bord superieur neumann homogène ("libre")
         for (unsigned int x(start_xiD); x <= end_xiD; ++x){
-          fnext[x][end_yiD] = fnext[x][end_yiD-1];
+          fnext[x][end_yiD] = fnext[x][end_yiD-1];				// VERIFIE   
         }
         break;
       case harmonic: // TODO : Compléter la condition au bord superieur harmonique
