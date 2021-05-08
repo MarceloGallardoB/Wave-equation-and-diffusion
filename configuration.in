@@ -1,6 +1,5 @@
-  
 % Paramètres physique généraux:
-tfin = 1.286239e0	% Temps physique de la simulation (s)
+tfin = 10.e0	% Temps physique de la simulation (s)
 xL = 0.e0    		% Limite gauche du fond marin (m) const: 0.
 xR = 10.e0   		% Limite droite du fond marin (m) const: 15.
 yL = 0.e0   		% Limite inférieure du fond marin (m) const: 0.
@@ -13,33 +12,33 @@ u = 4.e0  % Vitesse de propagation (m/s)
 
 % Paramètres physiques onde de Belharra:
 g = 9.81e0   % Accélération de gravité
-h0 = 2.e0    % Profondeur maximale du fond marin (m)
-h1 = 1.e0    % Profondeur minimale du fond marin (m)
+h0 = 1.e3    % Profondeur maximale du fond marin (m)
+h1 = 20.e0    % Profondeur minimale du fond marin (m)
 a = 2.e3     % Limite inférieure de l'onde en x (m)
 b = 5.e3     % Limite supérieure de l'onde en y (m)
 Ly = 2.e3    % Longueur caractéristique de l'onde en y (m)
 
 % Paramètres numériques :
-Nx = 64 			 % Nombre de nodes du maillage en x (extrêmes inclus)
+Nx = 64			 	 % Nombre de nodes du maillage en x (extrêmes inclus)
 Ny = 64 			 % Nombre de nodes du maillage en y (extrêmes inclus)
-CFL = 1.e0  			 % Valeur de la condition CFL
+CFL = 1.94e0  			 % Valeur de la condition CFL
 
 type_u2 = const		 	 % Type de simulation: "const", "onde_cas1" et "onde_cas2" 
 mode_num_x = 2			 % Valeur propre en x
 mode_num_y = 2			 % Valeur propre en y
 
-bc_left = dirichlet		 % Condition au bord gauche: dirichlet, neumann, harmonic
-bc_right  = dirichlet		 % Condition au bord droite: dirichlet, neumann, harmonic
-bc_lower  = dirichlet		 % Condition au bord inférieur: dirichlet, neumann, harmonic
-bc_upper  = dirichlet		 % Condition au bord supérieur: dirichlet, neumann, harmonic
-impulsion = false		 % Si vrai, et si harmonique, une seule onde est émise
+bc_left = harmonic		 % Condition au bord gauche: dirichlet, neumann, harmonic
+bc_right  = neumann		 % Condition au bord droite: dirichlet, neumann, harmonic
+bc_lower  = neumann		 % Condition au bord inférieur: dirichlet, neumann, harmonic
+bc_upper  = neumann		 % Condition au bord supérieur: dirichlet, neumann, harmonic
+impulsion = true		 % Si vrai, et si harmonique, une seule onde est émise
 A = 1.e0			 % Amplitude condition bord harmonique
 omega = 5.e0			 % Fréquence condition bord harmonique (rad/s)
-simple = false            % Si vrai, l'amplitude harmonique est donnée par f_tilde(x,y)
-neumann_apres_impulsion	= false  % Si vrai, le bord respecte la condition de neumann après l'impulsion, de dirichlet sinon
+pertu_f_tilde = false            % Si vrai, l'amplitude harmonique est donnée par f_tilde(x,y)
+neumann_apres_impulsion	= true  % Si vrai, le bord respecte la condition de neumann après l'impulsion, de dirichlet sinon
 
-type_init = harmonic		 % Type initialisation: harmonic, default: homogene
-F0 = 1.e0			 % Amplitude de l'harmonique initiale
+type_init = homogene		 % Type initialisation: harmonic, default: homogene
+F0 = 0.e0			 % Amplitude de l'harmonique initiale
 
 write_mesh = true		 % Si vrai, le maillage est écrit dans output_mesh.out
 write_f = true		 	 % Si vrai, la solution est écrite dans output_f.out

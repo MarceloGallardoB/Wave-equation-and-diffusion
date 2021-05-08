@@ -2,7 +2,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 lw = 2; fs = 16;
 u = 4; nx = 64; ny = 64; Lx = 10; Ly = 6; m = 2; n = 2; hx = Lx/(nx-1); hy = Ly/(ny-1); kx = pi*m/Lx; ky = pi*n/Ly; omega = 4*pi*sqrt(m^2/Lx^2 + n^2/Ly^2);
-tfin = 1.286239;
+tfin = 10;
 
 repertoire = ''; % Chemin d'accès au code compilé
 executable = 'Exercice7'; % Nom de l'exécutable
